@@ -8,11 +8,22 @@ from pydub import AudioSegment
 import time
 
 # Convert .m4a to .wav
-def convert_m4a_to_wav(m4a_file, output_folder="media"):
-    audio = AudioSegment.from_file(m4a_file, format="m4a")
+def convert_format_to_wav(m4a_file, output_folder="media", format="m4a"):
     wav_file = os.path.join(output_folder, "audio.wav")
-    audio.export(wav_file, format="wav")
-    return wav_file
+    try:
+        audio = AudioSegment.from_file(m4a_file, format=format)
+        audio.export(wav_file, format="wav")
+        return wav_file
+    except Exception as e:
+        print(f"Error al convertir el archivo: {e}")
+        print ("Intentando con ffmpeg...")
+        #ffmpeg -err_detect ignore_err -i m4a_file -c copy output.wav
+        command = [
+            'ffmpeg', '-err_detect', 'ignore_err', '-i', m4a_file, '-c', 'copy', wav_file
+        ]
+        subprocess.run(command, check=True)
+        return wav_file
+
 
 # Convert sample rate and channels to mono PCM
 def convert_to_mono_pcm(input_wav, output_wav, sample_rate=16000):
@@ -32,6 +43,19 @@ def convert_sample_rate(input_wav, output_wav, sample_rate=16000):
     ]
     subprocess.run(command, check=True)
 
+
+#Cut the audio file to the desired length
+def cut_audio(input_wav, output_wav, start_time, end_time):
+    # Generar un nombre de archivo temporal para el archivo de salida
+    temp_output_wav = output_wav.replace('.wav', '_cut.wav')
+    
+    command = [
+        'ffmpeg', '-i', input_wav, '-ss', start_time, '-to', end_time, temp_output_wav
+    ]
+    subprocess.run(command, check=True)
+    
+    # Renombrar el archivo temporal al nombre de archivo original
+    os.replace(temp_output_wav, output_wav)
 
 
 # Transcribe audio to text using Vosk
@@ -91,10 +115,23 @@ def transcribe_audio_google(file_path):
 
 # Paths
 media_folder = "media"
-m4a_file = os.path.join(media_folder, "trimmed_repaired.m4a")
+m4a_file = os.path.join(media_folder, "audio.m4a")
 
 # Convert to .wav
-wav_file = convert_m4a_to_wav(m4a_file, media_folder)
+wav_file = convert_format_to_wav(m4a_file, media_folder, "m4a")
+
+while True:
+    print ("Would you like to cut the audio file? (y/n)")
+    cut = input()
+    if cut == "y":
+        print("Enter the start time (HH:MM:SS)")
+        start_time = input()
+        print("Enter the end time (HH:MM:SS)")
+        end_time = input()
+        cut_audio(wav_file, wav_file, start_time, end_time)
+        break
+    elif cut == "n":
+        break
 
 while True:
     print("What service would you like to use? (Vosk or Google)")
@@ -127,6 +164,6 @@ while True:
 print(transcription)
 
 # Save transcription to a text file with accents (UTF-8 encoding) and \n every 120 characters
-with open("transcription.txt", "w", encoding="utf-8") as f:
+with open("transcription.txt", "a", encoding="utf-8") as f:
     for i in range(0, len(transcription), 120):
         f.write(transcription[i:i+120] + "\n")

@@ -1,0 +1,3 @@
+vosk-model-es-0.42/graph/HCLG.fst filter=lfs diff=lfs merge=lfs -text
+vosk-model-es-0.42/rescore/G.carpa filter=lfs diff=lfs merge=lfs -text
+vosk-model-es-0.42/rescore/G.fst filter=lfs diff=lfs merge=lfs -text
